@@ -1,0 +1,432 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>DouZero API 测试页面</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+        h1 {
+            text-align: center;
+            color: white;
+            margin-bottom: 30px;
+            font-size: 2em;
+        }
+        .api-section {
+            background: white;
+            border-radius: 12px;
+            padding: 20px;
+            margin-bottom: 20px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        }
+        .api-section h2 {
+            color: #333;
+            margin-bottom: 15px;
+            padding-bottom: 10px;
+            border-bottom: 2px solid #667eea;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        .method-badge {
+            display: inline-block;
+            padding: 4px 12px;
+            border-radius: 4px;
+            font-size: 12px;
+            font-weight: bold;
+            color: white;
+        }
+        .get { background: #61affe; }
+        .post { background: #49cc90; }
+        .form-group {
+            margin-bottom: 15px;
+        }
+        label {
+            display: block;
+            margin-bottom: 5px;
+            color: #555;
+            font-weight: 500;
+        }
+        input, select, textarea {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 6px;
+            font-size: 14px;
+            transition: border-color 0.3s;
+        }
+        input:focus, select:focus, textarea:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+        textarea {
+            min-height: 100px;
+            font-family: monospace;
+        }
+        .row {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 15px;
+        }
+        button {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: 600;
+            transition: transform 0.2s, box-shadow 0.2s;
+        }
+        button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
+        }
+        button:active {
+            transform: translateY(0);
+        }
+        .response {
+            margin-top: 15px;
+            padding: 15px;
+            background: #f8f9fa;
+            border-radius: 6px;
+            border-left: 4px solid #667eea;
+        }
+        .response h3 {
+            margin-bottom: 10px;
+            color: #333;
+        }
+        .response pre {
+            background: #2d2d2d;
+            color: #f8f8f2;
+            padding: 15px;
+            border-radius: 6px;
+            overflow-x: auto;
+            font-size: 13px;
+            line-height: 1.5;
+        }
+        .loading {
+            display: none;
+            color: #667eea;
+            margin-left: 10px;
+        }
+        .card-info {
+            background: #e7f3ff;
+            padding: 10px 15px;
+            border-radius: 6px;
+            margin-bottom: 15px;
+            font-size: 13px;
+            color: #0066cc;
+        }
+        .card-info code {
+            background: #fff;
+            padding: 2px 6px;
+            border-radius: 3px;
+        }
+        .quick-buttons {
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+            margin-bottom: 15px;
+        }
+        .quick-btn {
+            padding: 6px 12px;
+            font-size: 12px;
+            background: #f0f0f0;
+            color: #333;
+            border: 1px solid #ddd;
+        }
+        .quick-btn:hover {
+            background: #e0e0e0;
+        }
+        .status-ok { color: #28a745; }
+        .status-error { color: #dc3545; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>DouZero API 测试页面</h1>
+
+        <!-- 健康检查 -->
+        <div class="api-section">
+            <h2><span class="method-badge get">GET</span> /api/health - 健康检查</h2>
+            <button onclick="testHealth()">发送请求</button>
+            <span class="loading" id="health-loading">加载中...</span>
+            <div class="response" id="health-response" style="display:none;">
+                <h3>响应结果</h3>
+                <pre id="health-result"></pre>
+            </div>
+        </div>
+
+        <!-- 模型配置 -->
+        <div class="api-section">
+            <h2><span class="method-badge get">GET</span> /api/config - 模型配置</h2>
+            <button onclick="testConfig()">发送请求</button>
+            <span class="loading" id="config-loading">加载中...</span>
+            <div class="response" id="config-response" style="display:none;">
+                <h3>响应结果</h3>
+                <pre id="config-result"></pre>
+            </div>
+        </div>
+
+        <!-- 出牌建议 -->
+        <div class="api-section">
+            <h2><span class="method-badge post">POST</span> /api/act - 出牌建议</h2>
+            <div class="card-info">
+                <strong>牌值映射:</strong> 
+                <code>3-14</code>=3~A, <code>17</code>=2, <code>20</code>=小王, <code>30</code>=大王
+            </div>
+            <div class="quick-buttons">
+                <span>快速填充:</span>
+                <button class="quick-btn" onclick="fillActExample('landlord')">地主示例</button>
+                <button class="quick-btn" onclick="fillActExample('farmer')">农民示例</button>
+            </div>
+            <div class="row">
+                <div class="form-group">
+                    <label>位置 (position)</label>
+                    <select id="act-position">
+                        <option value="landlord">landlord (地主)</option>
+                        <option value="landlord_up">landlord_up (地主上家)</option>
+                        <option value="landlord_down">landlord_down (地主下家)</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>手牌 (player_hand_cards)</label>
+                    <input type="text" id="act-cards" placeholder="如: 3,4,5,6,7,8,9,10,11,12,13,14,17,17,20,30">
+                </div>
+            </div>
+            <div class="row">
+                <div class="form-group">
+                    <label>最近出牌 (last_move)</label>
+                    <input type="text" id="act-last-move" placeholder="如: 5 或留空表示主动出牌">
+                </div>
+                <div class="form-group">
+                    <label>地主底牌 (three_landlord_cards)</label>
+                    <input type="text" id="act-landlord-cards" placeholder="如: 17,20,30">
+                </div>
+            </div>
+            <div class="form-group">
+                <label>历史出牌序列 (card_play_action_seq) - JSON数组</label>
+                <textarea id="act-history" placeholder='[[], [3], [], [5]]'></textarea>
+            </div>
+            <button onclick="testAct()">发送请求</button>
+            <span class="loading" id="act-loading">加载中...</span>
+            <div class="response" id="act-response" style="display:none;">
+                <h3>响应结果</h3>
+                <pre id="act-result"></pre>
+            </div>
+        </div>
+
+        <!-- 叫分建议 -->
+        <div class="api-section">
+            <h2><span class="method-badge post">POST</span> /api/bid - 叫分建议</h2>
+            <div class="row">
+                <div class="form-group">
+                    <label>位置 (position)</label>
+                    <select id="bid-position">
+                        <option value="landlord">landlord (地主)</option>
+                        <option value="landlord_up">landlord_up (地主上家)</option>
+                        <option value="landlord_down">landlord_down (地主下家)</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>手牌 (hand_cards)</label>
+                    <input type="text" id="bid-cards" placeholder="如: 3,4,5,6,7,8,9,10,11,12,13,14,17,17">
+                </div>
+            </div>
+            <div class="form-group">
+                <label>地主底牌 (three_landlord_cards)</label>
+                <input type="text" id="bid-landlord-cards" placeholder="如: 17,20,30">
+            </div>
+            <button onclick="testBid()">发送请求</button>
+            <span class="loading" id="bid-loading">加载中...</span>
+            <div class="response" id="bid-response" style="display:none;">
+                <h3>响应结果</h3>
+                <pre id="bid-result"></pre>
+            </div>
+        </div>
+
+        <!-- 加倍建议 -->
+        <div class="api-section">
+            <h2><span class="method-badge post">POST</span> /api/double - 加倍建议</h2>
+            <div class="row">
+                <div class="form-group">
+                    <label>位置 (position)</label>
+                    <select id="double-position">
+                        <option value="landlord_up">landlord_up (地主上家)</option>
+                        <option value="landlord_down">landlord_down (地主下家)</option>
+                        <option value="landlord">landlord (地主)</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>手牌 (hand_cards)</label>
+                    <input type="text" id="double-cards" placeholder="如: 3,4,5,6,7,8,9,10,11,12,13,14,17,17">
+                </div>
+            </div>
+            <div class="row">
+                <div class="form-group">
+                    <label>当前地主叫分 (current_landlord_score)</label>
+                    <select id="double-score">
+                        <option value="1">1分</option>
+                        <option value="2">2分</option>
+                        <option value="3">3分</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>地主手牌 (landlord_cards) - 可选</label>
+                    <input type="text" id="double-landlord-cards" placeholder="如知道地主手牌可填入">
+                </div>
+            </div>
+            <button onclick="testDouble()">发送请求</button>
+            <span class="loading" id="double-loading">加载中...</span>
+            <div class="response" id="double-response" style="display:none;">
+                <h3>响应结果</h3>
+                <pre id="double-result"></pre>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const API_BASE = window.location.origin;
+
+        function showResponse(id, data) {
+            document.getElementById(`${id}-response`).style.display = 'block';
+            document.getElementById(`${id}-result`).textContent = JSON.stringify(data, null, 2);
+        }
+
+        function showLoading(id, show) {
+            document.getElementById(`${id}-loading`).style.display = show ? 'inline' : 'none';
+        }
+
+        async function fetchData(endpoint, options = {}, id) {
+            showLoading(id, true);
+            try {
+                const response = await fetch(`${API_BASE}${endpoint}`, options);
+                const data = await response.json();
+                showResponse(id, data);
+            } catch (error) {
+                showResponse(id, { error: error.message });
+            }
+            showLoading(id, false);
+        }
+
+        function testHealth() {
+            fetchData('/api/health', {}, 'health');
+        }
+
+        function testConfig() {
+            fetchData('/api/config', {}, 'config');
+        }
+
+        function parseCards(str) {
+            if (!str || str.trim() === '') return [];
+            return str.split(',').map(s => parseInt(s.trim())).filter(n => !isNaN(n));
+        }
+
+        function fillActExample(type) {
+            if (type === 'landlord') {
+                document.getElementById('act-position').value = 'landlord';
+                document.getElementById('act-cards').value = '3,4,5,6,7,8,9,10,11,12,13,14,17,17,20,30';
+                document.getElementById('act-last-move').value = '';
+                document.getElementById('act-landlord-cards').value = '17,20,30';
+                document.getElementById('act-history').value = '[]';
+            } else {
+                document.getElementById('act-position').value = 'landlord_up';
+                document.getElementById('act-cards').value = '4,5,6,7,8,9,10,11,12,13,14,17,20';
+                document.getElementById('act-last-move').value = '3';
+                document.getElementById('act-landlord-cards').value = '17,20,30';
+                document.getElementById('act-history').value = '[[], [3]]';
+            }
+        }
+
+        function testAct() {
+            const position = document.getElementById('act-position').value;
+            const cards = parseCards(document.getElementById('act-cards').value);
+            const lastMove = parseCards(document.getElementById('act-last-move').value);
+            const landlordCards = parseCards(document.getElementById('act-landlord-cards').value);
+            let history = [];
+            try {
+                const historyStr = document.getElementById('act-history').value.trim();
+                if (historyStr) {
+                    history = JSON.parse(historyStr);
+                }
+            } catch (e) {
+                alert('历史出牌序列格式错误，请输入有效的JSON数组');
+                return;
+            }
+
+            const data = {
+                position,
+                player_hand_cards: cards,
+                last_move: lastMove.length > 0 ? lastMove : null,
+                three_landlord_cards: landlordCards,
+                card_play_action_seq: history
+            };
+
+            fetchData('/api/act', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(data)
+            }, 'act');
+        }
+
+        function testBid() {
+            const position = document.getElementById('bid-position').value;
+            const cards = parseCards(document.getElementById('bid-cards').value);
+            const landlordCards = parseCards(document.getElementById('bid-landlord-cards').value);
+
+            const data = {
+                position,
+                hand_cards: cards,
+                three_landlord_cards: landlordCards
+            };
+
+            fetchData('/api/bid', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(data)
+            }, 'bid');
+        }
+
+        function testDouble() {
+            const position = document.getElementById('double-position').value;
+            const cards = parseCards(document.getElementById('double-cards').value);
+            const score = parseInt(document.getElementById('double-score').value);
+            const landlordCards = parseCards(document.getElementById('double-landlord-cards').value);
+
+            const data = {
+                position,
+                hand_cards: cards,
+                current_landlord_score: score,
+                landlord_cards: landlordCards
+            };
+
+            fetchData('/api/double', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(data)
+            }, 'double');
+        }
+
+        // 页面加载时自动测试健康检查
+        window.onload = function() {
+            testHealth();
+        };
+    </script>
+</body>
+</html>
