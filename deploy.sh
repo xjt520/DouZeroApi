@@ -108,7 +108,7 @@ install_python() {
     cd Python-$PYTHON_VERSION
     
     log_info "配置..."
-    ./configure --enable-optimizations --quiet
+    ./configure --quiet
     
     log_info "编译安装 (这可能需要几分钟)..."
     make -j$(nproc) --quiet
