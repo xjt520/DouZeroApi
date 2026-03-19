@@ -481,7 +481,7 @@ if __name__ == "__main__":
     logger.info("🎮 DouZero API V2 服务 (douzero_agent 兼容接口)")
     logger.info("=" * 50)
     uvicorn.run(
-        "api_server_new:app",
+        "api_server:app",
         host=Config.get('server.host', '0.0.0.0'),
         port=Config.get('server.port', 8000),
         log_level=Config.get('server.log_level', 'info')
