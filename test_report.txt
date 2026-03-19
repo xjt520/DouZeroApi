@@ -1,0 +1,113 @@
+================================================================================
+                    DouZero API 接口测试报告
+================================================================================
+测试时间: 2026-03-19 17:35:50
+服务地址: http://localhost:8000
+
+--------------------------------------------------------------------------------
+【测试概览】
+--------------------------------------------------------------------------------
+  总接口数: 5
+  通过数量: 5
+  失败数量: 0
+  通过率:   100.0%
+
+--------------------------------------------------------------------------------
+【1. 健康检查接口】✅ PASS
+    端点: GET /api/health
+    平均响应时间: 2.28ms
+
+    测试用例 1: GET /api/health ✅
+        HTTP状态码: 200
+    测试用例 2: GET /health (别名) ✅
+        HTTP状态码: 200
+
+--------------------------------------------------------------------------------
+【2. 出牌建议接口】✅ PASS
+    端点: POST /api/play
+    平均响应时间: 5.52ms
+
+    测试用例 1: 地主出牌 - 基本场景 ✅
+        HTTP状态码: 200
+        响应时间: 4.77ms
+        验证结果: {"has_required_fields": true, "cards": "", "action_type": "pass", "win_rate": 0.0}
+    测试用例 2: 农民(上家)出牌 - 需要跟牌 ✅
+        HTTP状态码: 200
+        响应时间: 2.7ms
+        验证结果: {"has_required_fields": true, "cards": "", "action_type": "pass", "win_rate": 1.0}
+    测试用例 3: 农民(下家)出牌 - 自由出牌 ✅
+        HTTP状态码: 200
+        响应时间: 5.52ms
+        验证结果: {"has_required_fields": true, "cards": "33445566778899", "action_type": "straight_pair", "win_rate": 0.6899506896734238}
+    测试用例 4: 地主出牌 - 有炸弹场景 ✅
+        HTTP状态码: 200
+        响应时间: 4.37ms
+        验证结果: {"has_required_fields": true, "cards": "", "action_type": "pass", "win_rate": 1.0}
+    测试用例 5: 边界测试 - 只剩一张牌 ✅
+        HTTP状态码: 200
+        响应时间: 4.11ms
+        验证结果: {"has_required_fields": true, "cards": "", "action_type": "pass", "win_rate": 0.0}
+
+--------------------------------------------------------------------------------
+【3. 全量出牌建议接口】✅ PASS
+    端点: POST /api/actions
+    平均响应时间: 4.6ms
+
+    测试用例 1: 地主获取所有出牌建议 ✅
+        HTTP状态码: 200
+        响应时间: 3.98ms
+        验证结果: {"has_best_action": true, "has_actions_list": true, "total_count": 6, "actions_count": 6}
+    测试用例 2: 农民需要跟牌 - 获取所有可行方案 ✅
+        HTTP状态码: 200
+        响应时间: 4.6ms
+        验证结果: {"has_best_action": true, "has_actions_list": true, "total_count": 5, "actions_count": 5}
+
+--------------------------------------------------------------------------------
+【4. 叫分建议接口】✅ PASS
+    端点: POST /api/bid
+    平均响应时间: 8.78ms
+
+    测试用例 1: 普通手牌 - 中等强度 ✅
+        HTTP状态码: 200
+        响应时间: 4.71ms
+        验证结果: {"has_required_fields": true, "should_bid": true, "win_rate": 0.47498323023319244}
+    测试用例 2: 强牌 - 有大小王 ✅
+        HTTP状态码: 200
+        响应时间: 5.32ms
+        验证结果: {"has_required_fields": true, "should_bid": true, "win_rate": 1.0}
+    测试用例 3: 弱牌 - 无大牌 ✅
+        HTTP状态码: 200
+        响应时间: 5.83ms
+        验证结果: {"has_required_fields": true, "should_bid": true, "win_rate": 0.44734083116054535}
+    测试用例 4: 炸弹手牌 ✅
+        HTTP状态码: 200
+        响应时间: 8.78ms
+        验证结果: {"has_required_fields": true, "should_bid": true, "win_rate": 1.0}
+
+--------------------------------------------------------------------------------
+【5. 加倍建议接口】✅ PASS
+    端点: POST /api/double
+    平均响应时间: 9.17ms
+
+    测试用例 1: 农民 - 强牌加倍 ✅
+        HTTP状态码: 200
+        响应时间: 9.17ms
+        验证结果: {"has_required_fields": true, "should_double": true, "should_super_double": false, "win_rate": 0.6177333667874336}
+    测试用例 2: 农民 - 弱牌不加倍 ✅
+        HTTP状态码: 200
+        响应时间: 8.61ms
+        验证结果: {"has_required_fields": true, "should_double": true, "should_super_double": false, "win_rate": 1.0}
+    测试用例 3: 地主 - 默认不加倍 ✅
+        HTTP状态码: 200
+        响应时间: 7.54ms
+        验证结果: {"has_required_fields": true, "should_double": false, "should_super_double": false, "win_rate": 0.6808406412601471}
+    测试用例 4: 农民 - 超级加倍场景 ✅
+        HTTP状态码: 200
+        响应时间: 8.67ms
+        验证结果: {"has_required_fields": true, "should_double": true, "should_super_double": false, "win_rate": 1.0}
+
+================================================================================
+                        测试结论
+================================================================================
+  🎉 所有接口测试通过！API 服务运行正常。
+================================================================================
