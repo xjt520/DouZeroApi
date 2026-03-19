@@ -156,11 +156,20 @@
         }
         .status-ok { color: #28a745; }
         .status-error { color: #dc3545; }
+        .warning-box {
+            background: #fff3cd;
+            border: 1px solid #ffc107;
+            padding: 10px 15px;
+            border-radius: 6px;
+            margin-bottom: 15px;
+            font-size: 13px;
+            color: #856404;
+        }
     </style>
 </head>
 <body>
     <div class="container">
-        <h1>DouZero API 测试页面</h1>
+        <h1>DouZero API 测试页面 (V2)</h1>
 
         <!-- 健康检查 -->
         <div class="api-section">
@@ -173,85 +182,93 @@
             </div>
         </div>
 
-        <!-- 模型配置 -->
-        <div class="api-section">
-            <h2><span class="method-badge get">GET</span> /api/config - 模型配置</h2>
-            <button onclick="testConfig()">发送请求</button>
-            <span class="loading" id="config-loading">加载中...</span>
-            <div class="response" id="config-response" style="display:none;">
-                <h3>响应结果</h3>
-                <pre id="config-result"></pre>
-            </div>
-        </div>
-
         <!-- 出牌建议 -->
         <div class="api-section">
-            <h2><span class="method-badge post">POST</span> /api/act - 出牌建议</h2>
+            <h2><span class="method-badge post">POST</span> /api/play - 出牌建议</h2>
             <div class="card-info">
-                <strong>牌值映射:</strong> 
-                <code>3-14</code>=3~A, <code>17</code>=2, <code>20</code>=小王, <code>30</code>=大王
+                <strong>牌值格式:</strong> 使用字符串，如 <code>"3456789TJQKA2XD"</code><br>
+                <strong>映射:</strong> 3-9=3~9, T=10, J=J, Q=Q, K=K, A=A, 2=2, X=小王, D=大王
+            </div>
+            <div class="warning-box">
+                <strong>⚠️ 重要:</strong> <code>played_cards</code> 必须是<strong>全量累计</strong>（从开局到当前的所有出牌），建议同时提供 <code>cards_left</code>
             </div>
             <div class="quick-buttons">
                 <span>快速填充:</span>
-                <button class="quick-btn" onclick="fillActExample('landlord')">地主示例</button>
-                <button class="quick-btn" onclick="fillActExample('farmer')">农民示例</button>
+                <button class="quick-btn" onclick="fillPlayExample('landlord')">地主示例</button>
+                <button class="quick-btn" onclick="fillPlayExample('farmer')">农民示例</button>
             </div>
             <div class="row">
                 <div class="form-group">
                     <label>位置 (position)</label>
-                    <select id="act-position">
+                    <select id="play-position">
                         <option value="landlord">landlord (地主)</option>
                         <option value="landlord_up">landlord_up (地主上家)</option>
                         <option value="landlord_down">landlord_down (地主下家)</option>
                     </select>
                 </div>
                 <div class="form-group">
-                    <label>手牌 (player_hand_cards)</label>
-                    <input type="text" id="act-cards" placeholder="如: 3,4,5,6,7,8,9,10,11,12,13,14,17,17,20,30">
+                    <label>我的手牌 (my_cards)</label>
+                    <input type="text" id="play-cards" placeholder="如: 3456789TJQKA2XD">
                 </div>
             </div>
             <div class="row">
                 <div class="form-group">
-                    <label>最近出牌 (last_move)</label>
-                    <input type="text" id="act-last-move" placeholder="如: 5 或留空表示主动出牌">
+                    <label>地主底牌 (landlord_cards)</label>
+                    <input type="text" id="play-landlord-cards" placeholder="如: 2XD">
                 </div>
                 <div class="form-group">
-                    <label>地主底牌 (three_landlord_cards)</label>
-                    <input type="text" id="act-landlord-cards" placeholder="如: 17,20,30">
+                    <label>最近出牌 (last_moves)</label>
+                    <input type="text" id="play-last-moves" placeholder="如: 3,5 (逗号分隔)">
                 </div>
             </div>
-            <div class="form-group">
-                <label>历史出牌序列 (card_play_action_seq) - JSON数组</label>
-                <textarea id="act-history" placeholder='[[], [3], [], [5]]'></textarea>
+            <div class="row">
+                <div class="form-group">
+                    <label>地主已出牌 (played_cards.landlord)</label>
+                    <input type="text" id="play-played-landlord" placeholder="全量累计，如: 345">
+                </div>
+                <div class="form-group">
+                    <label>上家已出牌 (played_cards.landlord_up)</label>
+                    <input type="text" id="play-played-up" placeholder="全量累计，如: 67">
+                </div>
             </div>
-            <button onclick="testAct()">发送请求</button>
-            <span class="loading" id="act-loading">加载中...</span>
-            <div class="response" id="act-response" style="display:none;">
+            <div class="row">
+                <div class="form-group">
+                    <label>下家已出牌 (played_cards.landlord_down)</label>
+                    <input type="text" id="play-played-down" placeholder="全量累计，如: 89">
+                </div>
+                <div class="form-group">
+                    <label>炸弹数量 (bomb_count)</label>
+                    <input type="number" id="play-bomb-count" value="0" min="0">
+                </div>
+            </div>
+            <button onclick="testPlay()">发送请求</button>
+            <span class="loading" id="play-loading">加载中...</span>
+            <div class="response" id="play-response" style="display:none;">
                 <h3>响应结果</h3>
-                <pre id="act-result"></pre>
+                <pre id="play-result"></pre>
+            </div>
+        </div>
+
+        <!-- 全量出牌建议 -->
+        <div class="api-section">
+            <h2><span class="method-badge post">POST</span> /api/actions - 全量出牌建议</h2>
+            <div class="card-info">
+                使用与 /api/play 相同的参数，返回所有合法出牌及其胜率排序
+            </div>
+            <button onclick="testActions()">发送请求 (使用上方填写的参数)</button>
+            <span class="loading" id="actions-loading">加载中...</span>
+            <div class="response" id="actions-response" style="display:none;">
+                <h3>响应结果</h3>
+                <pre id="actions-result"></pre>
             </div>
         </div>
 
         <!-- 叫分建议 -->
         <div class="api-section">
             <h2><span class="method-badge post">POST</span> /api/bid - 叫分建议</h2>
-            <div class="row">
-                <div class="form-group">
-                    <label>位置 (position)</label>
-                    <select id="bid-position">
-                        <option value="landlord">landlord (地主)</option>
-                        <option value="landlord_up">landlord_up (地主上家)</option>
-                        <option value="landlord_down">landlord_down (地主下家)</option>
-                    </select>
-                </div>
-                <div class="form-group">
-                    <label>手牌 (hand_cards)</label>
-                    <input type="text" id="bid-cards" placeholder="如: 3,4,5,6,7,8,9,10,11,12,13,14,17,17">
-                </div>
-            </div>
             <div class="form-group">
-                <label>地主底牌 (three_landlord_cards)</label>
-                <input type="text" id="bid-landlord-cards" placeholder="如: 17,20,30">
+                <label>手牌 (cards) - 17张</label>
+                <input type="text" id="bid-cards" placeholder="如: 3456789TJQQAA22">
             </div>
             <button onclick="testBid()">发送请求</button>
             <span class="loading" id="bid-loading">加载中...</span>
@@ -266,31 +283,20 @@
             <h2><span class="method-badge post">POST</span> /api/double - 加倍建议</h2>
             <div class="row">
                 <div class="form-group">
-                    <label>位置 (position)</label>
-                    <select id="double-position">
-                        <option value="landlord_up">landlord_up (地主上家)</option>
-                        <option value="landlord_down">landlord_down (地主下家)</option>
-                        <option value="landlord">landlord (地主)</option>
-                    </select>
+                    <label>手牌 (cards)</label>
+                    <input type="text" id="double-cards" placeholder="如: 3456789TJQQAA22">
                 </div>
                 <div class="form-group">
-                    <label>手牌 (hand_cards)</label>
-                    <input type="text" id="double-cards" placeholder="如: 3,4,5,6,7,8,9,10,11,12,13,14,17,17">
+                    <label>是否为地主 (is_landlord)</label>
+                    <select id="double-is-landlord">
+                        <option value="false">否 (农民)</option>
+                        <option value="true">是 (地主)</option>
+                    </select>
                 </div>
             </div>
-            <div class="row">
-                <div class="form-group">
-                    <label>当前地主叫分 (current_landlord_score)</label>
-                    <select id="double-score">
-                        <option value="1">1分</option>
-                        <option value="2">2分</option>
-                        <option value="3">3分</option>
-                    </select>
-                </div>
-                <div class="form-group">
-                    <label>地主手牌 (landlord_cards) - 可选</label>
-                    <input type="text" id="double-landlord-cards" placeholder="如知道地主手牌可填入">
-                </div>
+            <div class="form-group">
+                <label>地主手牌 (landlord_cards) - 可选，用于比较</label>
+                <input type="text" id="double-landlord-cards" placeholder="如知道地主手牌可填入">
             </div>
             <button onclick="testDouble()">发送请求</button>
             <span class="loading" id="double-loading">加载中...</span>
@@ -329,71 +335,89 @@
             fetchData('/api/health', {}, 'health');
         }
 
-        function testConfig() {
-            fetchData('/api/config', {}, 'config');
-        }
-
-        function parseCards(str) {
-            if (!str || str.trim() === '') return [];
-            return str.split(',').map(s => parseInt(s.trim())).filter(n => !isNaN(n));
-        }
-
-        function fillActExample(type) {
+        function fillPlayExample(type) {
             if (type === 'landlord') {
-                document.getElementById('act-position').value = 'landlord';
-                document.getElementById('act-cards').value = '3,4,5,6,7,8,9,10,11,12,13,14,17,17,20,30';
-                document.getElementById('act-last-move').value = '';
-                document.getElementById('act-landlord-cards').value = '17,20,30';
-                document.getElementById('act-history').value = '[]';
+                document.getElementById('play-position').value = 'landlord';
+                document.getElementById('play-cards').value = '568AJ2';
+                document.getElementById('play-landlord-cards').value = '2XD';
+                document.getElementById('play-last-moves').value = '7,5';
+                document.getElementById('play-played-landlord').value = '34';
+                document.getElementById('play-played-up').value = '7';
+                document.getElementById('play-played-down').value = '';
+                document.getElementById('play-bomb-count').value = '0';
             } else {
-                document.getElementById('act-position').value = 'landlord_up';
-                document.getElementById('act-cards').value = '4,5,6,7,8,9,10,11,12,13,14,17,20';
-                document.getElementById('act-last-move').value = '3';
-                document.getElementById('act-landlord-cards').value = '17,20,30';
-                document.getElementById('act-history').value = '[[], [3]]';
+                document.getElementById('play-position').value = 'landlord_up';
+                document.getElementById('play-cards').value = '379TKA';
+                document.getElementById('play-landlord-cards').value = '2XD';
+                document.getElementById('play-last-moves').value = '5';
+                document.getElementById('play-played-landlord').value = '345';
+                document.getElementById('play-played-up').value = '';
+                document.getElementById('play-played-down').value = '';
+                document.getElementById('play-bomb-count').value = '0';
             }
         }
 
-        function testAct() {
-            const position = document.getElementById('act-position').value;
-            const cards = parseCards(document.getElementById('act-cards').value);
-            const lastMove = parseCards(document.getElementById('act-last-move').value);
-            const landlordCards = parseCards(document.getElementById('act-landlord-cards').value);
-            let history = [];
-            try {
-                const historyStr = document.getElementById('act-history').value.trim();
-                if (historyStr) {
-                    history = JSON.parse(historyStr);
-                }
-            } catch (e) {
-                alert('历史出牌序列格式错误，请输入有效的JSON数组');
-                return;
-            }
+        function getPlayData() {
+            const position = document.getElementById('play-position').value;
+            const myCards = document.getElementById('play-cards').value.trim();
+            const landlordCards = document.getElementById('play-landlord-cards').value.trim();
+            const lastMovesStr = document.getElementById('play-last-moves').value.trim();
+            const playedLandlord = document.getElementById('play-played-landlord').value.trim();
+            const playedUp = document.getElementById('play-played-up').value.trim();
+            const playedDown = document.getElementById('play-played-down').value.trim();
+            const bombCount = parseInt(document.getElementById('play-bomb-count').value) || 0;
+
+            const lastMoves = lastMovesStr ? lastMovesStr.split(',').map(s => s.trim()) : [];
+            
+            // 计算剩余牌数
+            const landlordLeft = 20 - playedLandlord.length;
+            const upLeft = 17 - playedUp.length;
+            const downLeft = 17 - playedDown.length;
 
             const data = {
                 position,
-                player_hand_cards: cards,
-                last_move: lastMove.length > 0 ? lastMove : null,
-                three_landlord_cards: landlordCards,
-                card_play_action_seq: history
+                my_cards: myCards,
+                played_cards: {
+                    landlord: playedLandlord,
+                    landlord_up: playedUp,
+                    landlord_down: playedDown
+                },
+                last_moves: lastMoves,
+                landlord_cards: landlordCards,
+                cards_left: {
+                    landlord: landlordLeft,
+                    landlord_up: upLeft,
+                    landlord_down: downLeft
+                },
+                bomb_count: bombCount
             };
 
-            fetchData('/api/act', {
+            return data;
+        }
+
+        function testPlay() {
+            const data = getPlayData();
+            fetchData('/api/play', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(data)
-            }, 'act');
+            }, 'play');
+        }
+
+        function testActions() {
+            const data = getPlayData();
+            fetchData('/api/actions', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(data)
+            }, 'actions');
         }
 
         function testBid() {
-            const position = document.getElementById('bid-position').value;
-            const cards = parseCards(document.getElementById('bid-cards').value);
-            const landlordCards = parseCards(document.getElementById('bid-landlord-cards').value);
+            const cards = document.getElementById('bid-cards').value.trim();
 
             const data = {
-                position,
-                hand_cards: cards,
-                three_landlord_cards: landlordCards
+                cards: cards
             };
 
             fetchData('/api/bid', {
@@ -404,15 +428,13 @@
         }
 
         function testDouble() {
-            const position = document.getElementById('double-position').value;
-            const cards = parseCards(document.getElementById('double-cards').value);
-            const score = parseInt(document.getElementById('double-score').value);
-            const landlordCards = parseCards(document.getElementById('double-landlord-cards').value);
+            const cards = document.getElementById('double-cards').value.trim();
+            const isLandlord = document.getElementById('double-is-landlord').value === 'true';
+            const landlordCards = document.getElementById('double-landlord-cards').value.trim();
 
             const data = {
-                position,
-                hand_cards: cards,
-                current_landlord_score: score,
+                cards: cards,
+                is_landlord: isLandlord,
                 landlord_cards: landlordCards
             };
 

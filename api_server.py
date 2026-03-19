@@ -3,6 +3,7 @@ from typing import List, Dict, Optional
 import os
 import yaml
 import copy
+import numpy as np
 
 from fastapi import FastAPI, HTTPException
 from fastapi.concurrency import run_in_threadpool
@@ -277,7 +278,14 @@ def predict_hand_value(hand_cards: List[int], three_landlord_cards: List[int] = 
     infoset.played_cards = {'landlord': [], 'landlord_up': [], 'landlord_down': []}
     infoset.last_move_dict = {'landlord': [], 'landlord_up': [], 'landlord_down': []}
     infoset.bomb_num = 0
-    infoset.other_hand_cards = []
+    
+    # 计算 other_hand_cards：全集减去当前手牌
+    from api.utils import ALL_ENV_CARDS
+    other_hand_cards = []
+    for card in set(ALL_ENV_CARDS):
+        count = ALL_ENV_CARDS.count(card) - full_hand.count(card)
+        other_hand_cards.extend([card] * count)
+    infoset.other_hand_cards = sorted(other_hand_cards)
     
     if position == 'landlord':
         infoset.num_cards_left_dict = {'landlord': len(full_hand), 'landlord_up': 17, 'landlord_down': 17}
