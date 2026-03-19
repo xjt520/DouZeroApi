@@ -92,11 +92,11 @@ install_python() {
     
     if [ ! -f "Python-$PYTHON_VERSION.tgz" ]; then
         log_info "下载 Python $PYTHON_VERSION..."
-        wget -q --show-progress $url || {
+        wget $url || {
             log_error "下载失败，尝试使用镜像..."
             # 尝试华为镜像
             url="https://mirrors.huaweicloud.com/python/$PYTHON_VERSION/Python-$PYTHON_VERSION.tgz"
-            wget -q --show-progress $url || {
+            wget $url || {
                 log_error "下载 Python 失败"
                 exit 1
             }
