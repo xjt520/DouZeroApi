@@ -13,7 +13,7 @@ class PlayRequest(BaseModel):
     )
     played_cards: Dict[str, str] = Field(
         default_factory=lambda: {"landlord": "", "landlord_up": "", "landlord_down": ""},
-        description="Cards played by each position"
+        description="Cumulative cards played by each position since game start (NOT just last round)"
     )
     last_moves: List[str] = Field(
         default_factory=list,
@@ -25,7 +25,7 @@ class PlayRequest(BaseModel):
     )
     cards_left: Optional[Dict[str, int]] = Field(
         default=None,
-        description="Cards left for each position, e.g. {\"landlord\": 15, \"landlord_up\": 10, \"landlord_down\": 8}"
+        description="Cards left for each position. STRONGLY RECOMMENDED to avoid inference errors if played_cards is incomplete"
     )
     bomb_count: int = Field(
         default=0,
@@ -44,10 +44,11 @@ class PlayRequest(BaseModel):
         json_schema_extra={
             "example": {
                 "position": "landlord",
-                "my_cards": "3456789TJQKA2XD",
-                "played_cards": {"landlord": "", "landlord_up": "KK", "landlord_down": ""},
-                "last_moves": ["KK"],
-                "landlord_cards": "22D"
+                "my_cards": "568AJ2",
+                "played_cards": {"landlord": "34", "landlord_up": "KK99", "landlord_down": "55"},
+                "last_moves": ["KK", "55"],
+                "landlord_cards": "2XD",
+                "cards_left": {"landlord": 6, "landlord_up": 13, "landlord_down": 15}
             }
         }
     )

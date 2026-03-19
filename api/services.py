@@ -6,6 +6,7 @@ from douzero.env.game import GameEnv
 from douzero.evaluation.deep_agent import DeepAgent
 from douzero.env.move_generator import MovesGener
 from douzero.env import move_detector as md
+from douzero.env import move_selector as ms
 from douzero.env.game import InfoSet
 from douzero.env.env import get_obs
 
@@ -73,30 +74,43 @@ class DouZeroService:
                 if rival_move_type == md.TYPE_0_PASS:
                     legal_actions = mg.gen_moves()
                 elif rival_move_type == md.TYPE_1_SINGLE:
-                    legal_actions = mg.gen_type_1_single()
+                    legal_actions = ms.filter_type_1_single(mg.gen_type_1_single(), last_move_env)
                 elif rival_move_type == md.TYPE_2_PAIR:
-                    legal_actions = mg.gen_type_2_pair()
+                    legal_actions = ms.filter_type_2_pair(mg.gen_type_2_pair(), last_move_env)
                 elif rival_move_type == md.TYPE_3_TRIPLE:
-                    legal_actions = mg.gen_type_3_triple()
-                elif rival_move_type == md.TYPE_4_TRIPLE_WITH_ONE:
-                    legal_actions = mg.gen_type_4_triple_with_one()
-                elif rival_move_type == md.TYPE_5_TRIPLE_WITH_TWO:
-                    legal_actions = mg.gen_type_5_triple_with_two()
-                elif rival_move_type == md.TYPE_6_FOUR_WITH_TWO:
-                    legal_actions = mg.gen_type_6_four_with_two()
-                elif rival_move_type == md.TYPE_7_STRAIGHT:
-                    legal_actions = mg.gen_type_7_straight(rival_move_len)
-                elif rival_move_type == md.TYPE_8_STRAIGHT_PAIR:
-                    legal_actions = mg.gen_type_8_straight_pair(rival_move_len)
-                elif rival_move_type == md.TYPE_9_PLANE_WITH_ONE:
-                    legal_actions = mg.gen_type_9_plane_with_one(rival_move_len)
-                elif rival_move_type == md.TYPE_10_PLANE_WITH_TWO:
-                    legal_actions = mg.gen_type_10_plane_with_two(rival_move_len)
-                elif rival_move_type == md.TYPE_11_BOMB:
-                    legal_actions = mg.gen_type_11_bomb()
-                elif rival_move_type == md.TYPE_12_ROCKET:
+                    legal_actions = ms.filter_type_3_triple(mg.gen_type_3_triple(), last_move_env)
+                elif rival_move_type == md.TYPE_6_3_1:
+                    legal_actions = ms.filter_type_6_3_1(mg.gen_type_6_3_1(), last_move_env)
+                elif rival_move_type == md.TYPE_7_3_2:
+                    legal_actions = ms.filter_type_7_3_2(mg.gen_type_7_3_2(), last_move_env)
+                elif rival_move_type == md.TYPE_8_SERIAL_SINGLE:
+                    legal_actions = ms.filter_type_8_serial_single(mg.gen_type_8_serial_single(rival_move_len), last_move_env)
+                elif rival_move_type == md.TYPE_9_SERIAL_PAIR:
+                    legal_actions = ms.filter_type_9_serial_pair(mg.gen_type_9_serial_pair(rival_move_len), last_move_env)
+                elif rival_move_type == md.TYPE_10_SERIAL_TRIPLE:
+                    legal_actions = ms.filter_type_10_serial_triple(mg.gen_type_10_serial_triple(rival_move_len), last_move_env)
+                elif rival_move_type == md.TYPE_11_SERIAL_3_1:
+                    legal_actions = ms.filter_type_11_serial_3_1(mg.gen_type_11_serial_3_1(rival_move_len), last_move_env)
+                elif rival_move_type == md.TYPE_12_SERIAL_3_2:
+                    legal_actions = ms.filter_type_12_serial_3_2(mg.gen_type_12_serial_3_2(rival_move_len), last_move_env)
+                elif rival_move_type == md.TYPE_13_4_2:
+                    legal_actions = ms.filter_type_13_4_2(mg.gen_type_13_4_2(), last_move_env)
+                elif rival_move_type == md.TYPE_14_4_22:
+                    legal_actions = ms.filter_type_14_4_22(mg.gen_type_14_4_22(), last_move_env)
+                elif rival_move_type == md.TYPE_4_BOMB:
+                    legal_actions = ms.filter_type_4_bomb(mg.gen_type_4_bomb(), last_move_env) + mg.gen_type_5_king_bomb()
+                elif rival_move_type == md.TYPE_5_KING_BOMB:
                     legal_actions = []
 
+                # 非炸弹牌型都可以用炸弹/火箭压
+                if rival_move_type not in [md.TYPE_0_PASS, md.TYPE_4_BOMB, md.TYPE_5_KING_BOMB]:
+                    legal_actions.extend(mg.gen_type_4_bomb())
+                    legal_actions.extend(mg.gen_type_5_king_bomb())
+                
+                # 对方出了牌才能 pass
+                if len(last_move_env) > 0:
+                    legal_actions.append([])
+                    
                 if not legal_actions:
                     legal_actions = [[]]
         except Exception:
@@ -121,6 +135,7 @@ class DouZeroService:
             play_order = ['landlord', 'landlord_down', 'landlord_up']
             current_idx = play_order.index(request.position)
             
+            last_pid_found = False
             for i, move in enumerate(reversed(request.last_moves)):
                 player_idx = (current_idx - 1 - i) % 3
                 player_pos = play_order[player_idx]
@@ -129,10 +144,15 @@ class DouZeroService:
                     infoset.last_two_moves[1 - i] = env_m
                 if not infoset.last_move_dict[player_pos]:
                     infoset.last_move_dict[player_pos] = env_m
-                if i == 0:
+                # last_pid 应该是最后一个真实出牌（非空）的玩家
+                if not last_pid_found and env_m:
                     infoset.last_pid = player_pos
-                if env_m:
-                    infoset.card_play_action_seq.insert(0, env_m)
+                    last_pid_found = True
+                infoset.card_play_action_seq.insert(0, env_m)
+            
+            # 如果所有 last_moves 都是空，使用默认值
+            if not last_pid_found:
+                infoset.last_pid = 'landlord'
         else:
             infoset.last_pid = 'landlord'
 

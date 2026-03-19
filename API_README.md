@@ -33,12 +33,31 @@ python3 api_server.py
 | `/` | GET | 服务信息 |
 | `/api/health` | GET | 健康检查 |
 | `/api/config` | GET | 获取模型配置 |
-| `/api/deal` | GET | 随机发牌模拟开局 |
-| `/api/act` | POST | 获取出牌建议 |
+| `/api/play` | POST | 获取最佳出牌建议 |
+| `/api/actions` | POST | 获取所有出牌建议及排序 |
 | `/api/bid` | POST | 获取叫分建议 |
 | `/api/double` | POST | 获取加倍建议 |
-| `/test_api.html` | GET | API测试页面 |
 | `/docs` | GET | Swagger API 文档 |
+
+---
+
+## 🎴 牌值格式
+
+API 使用字符串格式表示牌：
+
+| 字符 | 牌面 |
+|------|------|
+| 3-9 | 3-9 |
+| T | 10 |
+| J | J |
+| Q | Q |
+| K | K |
+| A | A |
+| 2 | 2 |
+| X | 小王 |
+| D | 大王 |
+
+示例：`"3456789TJQKA2XD"` 表示 3-A 的顺子 + 2 + 小王 + 大王
 
 ---
 
@@ -54,118 +73,175 @@ curl http://localhost:8000/api/health
 ```json
 {
   "status": "healthy",
-  "gpu_available": true,
-  "models_loaded": true,
-  "model_config": {
-    "model_type": "ADP",
-    "model_base_path": "baselines",
-    "model_paths": {
-      "landlord": "baselines/douzero_ADP/landlord.ckpt",
-      "landlord_up": "baselines/douzero_ADP/landlord_up.ckpt",
-      "landlord_down": "baselines/douzero_ADP/landlord_down.ckpt"
-    }
-  }
+  "agent_initialized": true
 }
 ```
 
 ---
 
-### 2. 随机发牌
+### 2. 获取最佳出牌建议
 
 ```bash
-curl http://localhost:8000/api/deal
-```
-
-**响应**：
-```json
-{
-  "landlord": [30, 20, 17, 17, 14, 13, 13, 11, 10, 9, 8, 8, 7, 6, 6, 5, 4, 4, 3, 3],
-  "landlord_up": [17, 14, 14, 13, 12, 12, 11, 10, 9, 9, 8, 7, 7, 6, 5, 4, 3],
-  "landlord_down": [17, 14, 13, 12, 12, 11, 11, 10, 10, 9, 8, 7, 6, 5, 5, 4, 3],
-  "three_landlord_cards": [17, 14, 13]
-}
-```
-
----
-
-### 3. 获取出牌建议
-
-```bash
-curl -X POST http://localhost:8000/api/act \
+curl -X POST http://localhost:8000/api/play \
   -H "Content-Type: application/json" \
   -d '{
     "position": "landlord",
-    "player_hand_cards": [5, 6, 8, 11, 14, 17],
-    "card_play_action_seq": [[], [3], [], [5]],
-    "three_landlord_cards": [17, 20, 30],
-    "bomb_num": 0
+    "my_cards": "568AJ2",
+    "played_cards": {
+      "landlord": "34",
+      "landlord_up": "7",
+      "landlord_down": ""
+    },
+    "last_moves": ["7", "5"],
+    "landlord_cards": "2XD",
+    "cards_left": {
+      "landlord": 6,
+      "landlord_up": 16,
+      "landlord_down": 17
+    },
+    "bomb_count": 0
   }'
 ```
 
 **请求参数**：
+
 | 参数 | 类型 | 必填 | 说明 |
 |------|------|------|------|
 | `position` | string | ✅ | 玩家位置: `landlord`, `landlord_up`, `landlord_down` |
-| `player_hand_cards` | array | ✅ | 玩家手牌 |
-| `card_play_action_seq` | array | ✅ | 历史出牌序列 |
-| `three_landlord_cards` | array | ❌ | 地主底牌 |
-| `bomb_num` | int | ❌ | 已出炸弹数量 |
+| `my_cards` | string | ✅ | 玩家手牌 (如 "3456789TJQKA2XD") |
+| `played_cards` | object | ⚠️ | **全量累计**已出牌 {"landlord": "345", "landlord_up": "67", "landlord_down": "89"}，见下方重要说明 |
+| `last_moves` | array | ❌ | 最近几轮出牌 (如 ["3", "5"])，用于判断当前轮次 |
+| `landlord_cards` | string | ❌ | 地主底牌 |
+| `cards_left` | object | ⚠️ | 各位置剩余牌数 {"landlord": 15, "landlord_up": 10, "landlord_down": 17} |
+| `bomb_count` | int | ❌ | 已出炸弹数量 |
+| `bid_info` | array | ❌ | 叫分信息矩阵 |
+| `multiply_info` | array | ❌ | 加倍信息 |
+
+> ⚠️ **关于 `played_cards` 和 `cards_left` 的重要说明**：
+> 
+> 模型需要推断对手的剩余手牌，这依赖于准确的已出牌信息：
+> - `played_cards` 必须是**全量累计**（从开局到当前该位置打出的所有牌），**不能只传最近一轮**
+> - 如果你的系统无法维护全量 `played_cards`，**务必提供 `cards_left`**（各位置剩余牌数）
+> - 若 `played_cards` 不完整且未提供 `cards_left`，模型会将已出的牌误判为对手手牌，导致推理**严重失准**
+>
+> **最佳实践**：同时提供准确的 `played_cards`（全量）和 `cards_left`
 
 **响应**：
 ```json
 {
-  "action": [8],
-  "action_str": "8",
+  "cards": "8",
+  "win_rate": 0.85,
+  "action_type": "single",
   "confidence": 0.85,
-  "legal_actions": [[5], [6], [8], [11], [14], [17], []],
-  "model_used": "douzero_ADP_landlord"
+  "is_pass": false,
+  "is_bomb": false
 }
 ```
 
-> 注：`model_used` 字段显示实际使用的模型类型和位置，可通过环境变量 `DOUZERO_MODEL_TYPE` 切换。
+---
+
+### 3. 获取所有出牌建议
+
+```bash
+curl -X POST http://localhost:8000/api/actions \
+  -H "Content-Type: application/json" \
+  -d '{
+    "position": "landlord",
+    "my_cards": "568AJ2",
+    "played_cards": {
+      "landlord": "34",
+      "landlord_up": "7",
+      "landlord_down": ""
+    },
+    "last_moves": ["7", "5"],
+    "landlord_cards": "2XD",
+    "cards_left": {
+      "landlord": 6,
+      "landlord_up": 16,
+      "landlord_down": 17
+    }
+  }'
+```
+
+**响应**：
+```json
+{
+  "best_action": {
+    "cards": "8",
+    "win_rate": 0.85,
+    "action_type": "single",
+    "confidence": 0.85,
+    "is_pass": false,
+    "is_bomb": false
+  },
+  "actions": [
+    {"cards": "8", "win_rate": 0.85, "action_type": "single", ...},
+    {"cards": "J", "win_rate": 0.82, "action_type": "single", ...},
+    ...
+  ],
+  "total_count": 7
+}
+```
 
 ---
 
-### 4. 获取叫分建议 (基于 Q-Value)
+### 4. 获取叫分建议
 
 ```bash
 curl -X POST http://localhost:8000/api/bid \
   -H "Content-Type: application/json" \
   -d '{
-    "position": "landlord_up",
-    "hand_cards": [3, 4, 5, 7, 8, 9, 10, 11, 12, 13, 14, 14, 17, 17],
-    "three_landlord_cards": [17, 20, 30]
+    "cards": "345789TJQQAA22"
   }'
 ```
+
+**请求参数**：
+
+| 参数 | 类型 | 必填 | 说明 |
+|------|------|------|------|
+| `cards` | string | ✅ | 手牌 (17张) |
+| `threshold` | float | ❌ | 叫分阈值 (默认 0.5) |
 
 **响应**：
 ```json
 {
-  "bid": 3,
-  "bid_reason": "模型预测胜率极高，叫3分抢地主 (Q-Value: 0.65)"
+  "should_bid": true,
+  "win_rate": 0.65,
+  "farmer_win_rate": 0.35,
+  "confidence": 0.3
 }
 ```
 
 ---
 
-### 5. 获取加倍建议 (基于 Q-Value)
+### 5. 获取加倍建议
 
 ```bash
 curl -X POST http://localhost:8000/api/double \
   -H "Content-Type: application/json" \
   -d '{
-    "position": "landlord_up",
-    "hand_cards": [3, 4, 5, 7, 8, 9, 10, 11, 12, 13, 14, 14, 17, 17],
-    "current_landlord_score": 2,
-    "landlord_cards": []
+    "cards": "345789TJQQAA22",
+    "is_landlord": false,
+    "landlord_cards": "3344556"
   }'
 ```
+
+**请求参数**：
+
+| 参数 | 类型 | 必填 | 说明 |
+|------|------|------|------|
+| `cards` | string | ✅ | 当前手牌 |
+| `is_landlord` | bool | ✅ | 是否为地主 |
+| `landlord_cards` | string | ❌ | 地主手牌 (用于比较) |
+| `position` | string | ❌ | 玩家位置 (农民时) |
 
 **响应**：
 ```json
 {
-  "double": true,
-  "double_reason": "手牌价值明显强于地主，建议加倍 (己方: 0.65, 地主: 0.05)"
+  "should_double": true,
+  "should_super_double": false,
+  "win_rate": 0.65,
+  "confidence": 0.3
 }
 ```
 
@@ -197,33 +273,33 @@ import requests
 
 # 出牌建议
 response = requests.post(
-    "http://localhost:8000/api/act",
+    "http://localhost:8000/api/play",
     json={
         "position": "landlord",
-        "player_hand_cards": [5, 6, 8, 11, 14, 17],
-        "card_play_action_seq": [[], [3], [], [5]],
-        "three_landlord_cards": [17, 20, 30],
-        "bomb_num": 0
+        "my_cards": "568AJ2",
+        "played_cards": {
+            "landlord": "34",       # 全量累计：地主已出的所有牌
+            "landlord_up": "7",     # 全量累计：上家已出的所有牌
+            "landlord_down": ""     # 下家还没出过牌
+        },
+        "last_moves": ["7", "5"],
+        "landlord_cards": "2XD",
+        "cards_left": {             # 强烈建议提供
+            "landlord": 6,
+            "landlord_up": 16,
+            "landlord_down": 17
+        },
+        "bomb_count": 0
     }
 )
 
 result = response.json()
-print(f"建议出牌: {result['action_str']}")
-print(f"置信度: {result['confidence']:.2%}")
+print(f"建议出牌: {result['cards']}")
+print(f"胜率: {result['win_rate']:.2%}")
+print(f"牌型: {result['action_type']}")
 ```
 
 完整示例请参考：`api_examples.py`
-
----
-
-## 🎴 牌值映射表
-
-| 数值 | 牌面 |
-|------|------|
-| 3-14 | 3-A |
-| 17 | 2 |
-| 20 | 小王 (X) |
-| 30 | 大王 (D) |
 
 ---
 
@@ -289,55 +365,9 @@ model:
     landlord_down: /data/models/my_landlord_down.ckpt
 ```
 
-### 查看当前配置
-
-启动后访问 `/api/config` 端点：
-
-```bash
-curl http://localhost:8000/api/config
-```
-
-响应示例：
-```json
-{
-  "model_type": "ADP",
-  "model_base_path": "baselines",
-  "model_paths": {
-    "landlord": "baselines/douzero_ADP/landlord.ckpt",
-    "landlord_up": "baselines/douzero_ADP/landlord_up.ckpt",
-    "landlord_down": "baselines/douzero_ADP/landlord_down.ckpt"
-  },
-  "available_model_types": ["ADP", "WP"],
-  "config_file": "config.yaml"
-}
-```
-
-### 修改端口
-
-编辑 `api_server.py` 底部：
-
-```python
-uvicorn.run(app, host="0.0.0.0", port=8080)  # 改为 8080
-```
-
 ---
 
 ## 🧪 测试
-
-### 测试页面
-
-启动服务后，在浏览器访问：
-
-```
-http://localhost:8000/test_api.html
-```
-
-测试页面功能：
-- ✅ 健康检查
-- ✅ 查看模型配置
-- ✅ 出牌建议测试（含快速填充示例）
-- ✅ 叫分建议测试
-- ✅ 加倍建议测试
 
 ### 快速测试
 
@@ -450,9 +480,9 @@ python3 -c "import torch; print(torch.cuda.is_available())"
 ### Q: 接口返回 500 错误
 
 查看服务器日志，通常是由于：
-- 手牌格式错误
+- 手牌格式错误（确保使用字符串格式如 "3456789TJQKA2XD"）
 - 位置参数无效
-- 历史序列格式错误
+- last_moves 格式错误
 
 ---
 
