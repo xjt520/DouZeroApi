@@ -1,0 +1,41 @@
+version: '3.8'
+
+services:
+  douzero-api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: douzero-api:latest
+    container_name: douzero-api
+    restart: always
+    ports:
+      - "8000:8000"
+    environment:
+      - TZ=Asia/Shanghai
+      - PYTHONUNBUFFERED=1
+    volumes:
+      # 挂载日志目录（可选）
+      - ./logs:/app/logs
+      # 挂载配置文件（可选，方便修改配置）
+      - ./config.yaml:/app/config.yaml:ro
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/api/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+    deploy:
+      resources:
+        limits:
+          memory: 4G
+        reservations:
+          memory: 2G
+
+networks:
+  default:
+    name: douzero-network
