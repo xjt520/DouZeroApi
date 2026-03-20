@@ -76,6 +76,69 @@ check_python() {
     return 1
 }
 
+# 检查虚拟环境
+check_venv() {
+    if [ -d "$VENV_DIR" ] && [ -f "$VENV_DIR/bin/activate" ]; then
+        log_info "虚拟环境已存在: $VENV_DIR"
+        return 0
+    fi
+    log_warn "虚拟环境不存在"
+    return 1
+}
+
+# 检查关键 Python 依赖
+check_python_deps() {
+    if [ ! -f "$VENV_DIR/bin/pip" ]; then
+        log_warn "虚拟环境中 pip 不存在"
+        return 1
+    fi
+    
+    source $VENV_DIR/bin/activate
+    
+    # 检查关键依赖
+    local deps=("fastapi" "uvicorn" "torch")
+    for dep in "${deps[@]}"; do
+        if ! pip show "$dep" &> /dev/null; then
+            log_warn "缺少依赖: $dep"
+            deactivate
+            return 1
+        fi
+    done
+    
+    deactivate
+    log_info "Python 依赖检查通过"
+    return 0
+}
+
+# 检查完整环境
+check_full_environment() {
+    log_info "检查环境..."
+    
+    local env_ok=true
+    
+    if ! check_python; then
+        env_ok=false
+    fi
+    
+    if ! check_venv; then
+        env_ok=false
+    fi
+    
+    if [ "$env_ok" = true ]; then
+        if ! check_python_deps; then
+            env_ok=false
+        fi
+    fi
+    
+    if [ "$env_ok" = true ]; then
+        log_info "环境检查通过，跳过安装步骤"
+        return 0
+    else
+        log_warn "环境不完整，需要安装"
+        return 1
+    fi
+}
+
 # 安装 Python
 install_python() {
     if check_python; then
@@ -267,6 +330,29 @@ show_status() {
     echo ""
 }
 
+# 重启服务
+restart_service() {
+    log_info "重启服务..."
+    
+    systemctl restart $SERVICE_NAME 2>/dev/null || {
+        # 如果服务不存在，先创建
+        create_systemd_service
+        configure_firewall
+        systemctl start $SERVICE_NAME
+        systemctl enable $SERVICE_NAME
+    }
+    
+    sleep 3
+    
+    if systemctl is-active --quiet $SERVICE_NAME; then
+        log_info "服务重启成功"
+    else
+        log_error "服务重启失败，查看日志:"
+        journalctl -u $SERVICE_NAME -n 20 --no-pager
+        exit 1
+    fi
+}
+
 # 主函数
 main() {
     echo ""
@@ -277,14 +363,24 @@ main() {
     
     check_root
     detect_system
-    install_system_deps
-    install_python
-    create_venv
-    install_python_deps
-    check_models
-    create_systemd_service
-    configure_firewall
-    start_service
+    
+    # 检查环境是否完整
+    if check_full_environment; then
+        # 环境完整，只检查模型并重启服务
+        check_models
+        restart_service
+    else
+        # 环境不完整，执行完整安装
+        install_system_deps
+        install_python
+        create_venv
+        install_python_deps
+        check_models
+        create_systemd_service
+        configure_firewall
+        start_service
+    fi
+    
     show_status
 }
 
