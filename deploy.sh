@@ -68,11 +68,31 @@ install_system_deps() {
 
 # 检查 Python 版本
 check_python() {
-    if command -v $PYTHON_CMD &> /dev/null; then
-        local version=$($PYTHON_CMD --version 2>&1 | awk '{print $2}')
-        log_info "已安装 $PYTHON_CMD 版本: $version"
+    # 刷新命令缓存
+    hash -r 2>/dev/null || true
+    
+    # 检查常见路径
+    local python_paths=("python3.9" "/usr/local/bin/python3.9" "/usr/bin/python3.9")
+    
+    for cmd in "${python_paths[@]}"; do
+        if [ -x "$cmd" ] 2>/dev/null; then
+            local version=$($cmd --version 2>&1 | awk '{print $2}')
+            log_info "已安装 Python 版本: $version ($cmd)"
+            PYTHON_CMD="$cmd"
+            export PYTHON_CMD
+            return 0
+        fi
+    done
+    
+    # 最后尝试 command -v
+    if command -v python3.9 &> /dev/null; then
+        local version=$(python3.9 --version 2>&1 | awk '{print $2}')
+        log_info "已安装 Python 版本: $version (python3.9)"
+        PYTHON_CMD="python3.9"
+        export PYTHON_CMD
         return 0
     fi
+    
     return 1
 }
 
@@ -178,6 +198,7 @@ install_python() {
     make altinstall --quiet
     
     # 验证安装
+    hash -r 2>/dev/null || true
     if check_python; then
         log_info "Python $PYTHON_VERSION 安装成功"
         rm -rf $tmp_dir
